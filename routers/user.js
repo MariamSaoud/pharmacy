@@ -14,16 +14,20 @@ router.post('/login',userController.login);
 router.post('/reset-password/:userId',userController.resetPassword);
 router.post('/delete-account/:userId',userController.deleteaccount);
 router.post('/logout',userController.logout);
+router.post('/edit-profile',authenticated,userController.editProfile)
 //ordering process
 router.post('/buy-an-item/:medicineId',authenticated,For_User.forUser,userController.buyAnItem);
 router.post('/cancel-order/:orderId',authenticated,For_User.forUser,userController.cancelOrder);
 router.post('/enter-location',authenticated,For_User.forUser,userController.location);
 //notifications
 router.post('/enter-notifications',authenticated,For_User.forUser,userController.notificationWant)
+router.delete('/delete-notification/:notificationId',authenticated,For_User.forUser,userController.deleteNotifications)
 // start of get requests :)
 router.get('/search',authenticated,For_User.forUser,userController.search)
 router.get('/show-notification',authenticated,For_User.forUser,userController.showNotification)
 router.get('/show-home',authenticated,For_User.forUser,userController.showHome)
 router.get('/show-prescription/:orderId',authenticated,For_User.forUser,userController.showPrescription)
 router.get('/showAltmed',authenticated,For_User.forUser,userController.showAltMed)
+router.get('/orders',authenticated,For_User.forUser,userController.showMedOrdered)
+router.get('/profile',authenticated,For_User.forUser,userController.showProfile)
 module.exports=router;

@@ -853,3 +853,33 @@ exports.showAltForMed=async(req,res,next)=>{
         return res.status(500).json({message:error.message})
     }
 }
+exports.showProfile=async(req,res,next)=>{
+    const id=req.id;
+    try{
+    const a=await user.findOne({where:{userId:id}})
+    return res.status(200).json({data:a})}
+    catch(error){
+        return res.status(500).json({message:'Server Error'})
+    }
+}
+exports.editProfile=async(req,res,next)=>{
+    const SignUpSchema=joi.object({
+        userName:joi.string().min(3).optional(),
+        email:joi.string().email().optional(),
+        password:joi.string().min(4).max(25).optional(),
+    })
+    const result=await SignUpSchema.validate(req.body);
+    if(result.error){
+        return res.status(400).json({error:result.error.details[0].message});
+    }
+    const userName=req.body.userName;
+    const email=req.body.email;
+    const password=req.body.password;
+    const id=req.id;
+    try{
+        const a=await user.update({userName:userName,email:email,password:password},{where:{userId:id}})
+        return res.status(200).json({message:"Updated Successfully"})}
+        catch(error){
+            return res.status(500).json({message:error.message})
+        }
+}

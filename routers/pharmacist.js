@@ -14,6 +14,7 @@ router.post('/login',pharmacistController.login);
 router.post('/reset-password/:userId',pharmacistController.resetPassword);
 router.post('/delete-account/:userId',pharmacistController.deleteaccount);
 router.post('/logout',pharmacistController.logout);
+router.post('/edit-profile',authenticated,pharmacistController.editProfile)
 //company
 router.post('/add-company',authenticated,For_Pharmacist.forPharmacist,pharmacistController.addCompany);
 router.post('/update-company/:companyId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.updateCompanyName);
@@ -45,6 +46,7 @@ router.get('/show-notification',authenticated,For_Pharmacist.forPharmacist,pharm
 router.get('/show-from-barcode',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showFromBarcode)
 router.get('/show-orders',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showOrdersDetails)
 router.get('/show-companies',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showCompanies)
-router.get('/show-Altmed',pharmacistController.showAltForAllMed)
-router.get('/showForMed-Alts/:medicineId',pharmacistController.showAltForMed)
+router.get('/show-Altmed',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showAltForAllMed)
+router.get('/showForMed-Alts/:medicineId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showAltForMed)
+router.get('/profile',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showProfile)
 module.exports=router;
