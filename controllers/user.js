@@ -566,3 +566,25 @@ exports.editProfile=async(req,res,next)=>{
             return res.status(500).json({message:error.message})
         }
 }
+exports.cancelFromOrder=async(req,res,next)=>{
+    const op_relationId=req.params.op_relationId;
+    try{
+        const c=await op_relation.findOne({where:{op_relationId:op_relationId}})
+        if(!c){
+        return res.status(400).json({message:"The Item Isn't Here :)"})  
+        }
+        else{
+            const d=await order.findOne({where:{orderId:c.orderOrderId,state:"waiting"}})
+            if(!d){
+            return res.status(400).json({message:"The Item Isn't Here !"})
+            }
+            else{
+                await op_relation.destroy({where:{op_relationId:op_relationId}})
+                return res.status(202).json({message:"The Item Deleted From Order :("})
+            }
+        }
+        return res.status(202).json({message:"Remove From Order Successfully :)"})
+    }catch(error){
+        return res.status(500).json({message:"Server Error :("})
+    }
+}

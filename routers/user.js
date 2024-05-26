@@ -19,6 +19,7 @@ router.post('/edit-profile',authenticated,userController.editProfile)
 router.post('/buy-an-item/:medicineId',authenticated,For_User.forUser,userController.buyAnItem);
 router.post('/cancel-order/:orderId',authenticated,For_User.forUser,userController.cancelOrder);
 router.post('/enter-location',authenticated,For_User.forUser,userController.location);
+router.post('/cancel-from-order/:op_relationId',authenticated,For_User.forUser,userController.cancelFromOrder);
 //notifications
 router.post('/enter-notifications',authenticated,For_User.forUser,userController.notificationWant)
 router.delete('/delete-notification/:notificationId',authenticated,For_User.forUser,userController.deleteNotifications)

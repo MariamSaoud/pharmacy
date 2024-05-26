@@ -77,6 +77,7 @@ notification.belongsTo(user);
 
 //sequelize.sync({alter:true}); //force:true (no stay data)     alter:true (the data will stay)
 sequelize.authenticate(); //connect
-app.listen(3000,()=>{
-    console.log('my server is running :)')
+const port=process.env.PORT||3000;
+app.listen(port,()=>{
+    console.log(`my server is running on port ${port} :)`)
 });
