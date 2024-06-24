@@ -112,7 +112,7 @@ exports.SignUp=async(req,res,next)=>{
             return res.status(200).json(me);
         }
     }catch(error){
-        return res.status(500).json({msg:"Sorry Something Went Wrong!"})
+        return res.status(500).json({msg:error.message})
     }
 }
 //verifyOTP
@@ -320,7 +320,7 @@ exports.cancelOrder=async(req,res,next)=>{
             return res.status(202).json({message:"There Is No Order To Cancel It :)"})
         }
     }catch(error){
-        return res.status(500).json({message:"Server Error"})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.location=async(req,res,next)=>{
@@ -338,7 +338,7 @@ if(result.error)
         await user.update({location:location},{where:{userId:id}})
         return res.status(202).json({message:"We Will Send The Order To You :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error"})
+        return res.status(500).json({message:error.message})
     }
 }
 let k;
@@ -347,19 +347,38 @@ exports.notificationWant=async(req,res,next)=>{
         time:joi.number().required(),
         duration:joi.number().required(),
         med:joi.string().required(),
+        receivedtoken:joi.string().required(),
     })
     const result=await SignUpSchema.validate(req.body);
     if(result.error)
     {
         return res.status(400).json({error:result.error.details[0].message})
     }
+    if(receivedtoken.length==0){
+        return res.status(400).json({msg:"No Token Here!"});
+    }
+    const receivedtoken=req.body.fcmToken;
     const id=req.id;
     const time=req.body.time;   //time in hour like 8 hours to take the medicine
     const duration=req.body.duration;   //days
     const med=req.body.med;     //medicine to remember user to take it!
     for(k=0;k<duration*((24*3600)/(time*3600));k++){
         setTimeout(()=>{
+            if(tokenArr.length==0){
+                return res.status(400).json({message:"No Token Found To Send Notification"})
+            }
+            else{
+            const message={
+                notification:{
+                    title:"Remember Your Medicine",
+                    body:`Herry Up Go To Take Your Medicine  ${med}`
+                },
+                token:receivedtoken[0]
+            };
+            admin.messaging().send(message).then(()=>{
             const t=notification.create({description:`Take Your Medicine ${med},To Feel Better:)`,userUserId:id})
+            }).catch((error)=>{return res.status(500).json({message:error.message})})
+            }
         },time*3600*(k+1)*1000)
     }
     clearInterval();
@@ -372,7 +391,7 @@ exports.deleteNotifications=async(req,res,next)=>{
     return res.status(202).json({message:"Deleted Successfully:)"})
     }catch(error)
     {
-        return res.status(500).json({message:"Server Error!"})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showHome=async(req,res,next)=>{
@@ -400,7 +419,7 @@ exports.showHome=async(req,res,next)=>{
         return res.status(500).json({error:error.message})
     }
 }
-
+//search
 let result;
 exports.search=async(req,res,next)=>{
     const SignUpSchema=joi.object({
@@ -412,33 +431,32 @@ exports.search=async(req,res,next)=>{
     }
     const medSearch=req.body.medSearch;
     try{
-    const name=await medicine.findAll({where:{medicineName:medSearch}})
-    if(name.length!==0){
+    const p=medSearch.concat('','%')
+    const p1='%'.concat('',p)
+    const name= await sequelize.query('SELECT * FROM medicines WHERE medicineName LIKE :search',{replacements:{search:p1}})
+    if(name[0].length!==0){
         result=await name;
     }
-    else if (name.length==0) {
-        const myCompany=await company.findOne({where:{companyName:medSearch}})
+    else if (name[0].length===0) {
+        const myCompany=await sequelize.query('SELECT * FROM companies WHERE companyName LIKE :search',{replacements:{search:p1}})
         let medCompany
-        if(myCompany){
-            medCompany=await medicine.findAll({where:{companyCompanyId:myCompany.companyId}})
+        if(myCompany[0].length!==0){
+            medCompany=await medicine.findAll({where:{companyCompanyId:myCompany[0][0].companyId}})
             result=medCompany}
-            else if(!myCompany){
-                const p=medSearch.concat('',' %')
-                    const p1='%'.concat('',p)
+            else if(myCompany[0].length===0){
                 const composition=await sequelize.query('SELECT * FROM medicines WHERE pharmaceuticalComposition LIKE :search',{replacements:{search:p1}})
-                console.log(composition[0].length)
                 if(composition[0].length!==0){
                     result=await composition[0]
-                    console.log(composition)
+                    console.log(name[0].length,myCompany[0].length,composition[0].length)
                 }
-                else if(composition[0].length===0){
-                    var l='Try To Search About Another Thing !';
+                else if(composition[0][0].length===0){
+                    var l=['Try To Search About Another Thing !'];
                     result=l;
                 }
             }
     }
-    return res.status(202).json({result:result})}catch(error){
-        return res.status(500).json({message:'There Is An Error:( '})
+    return res.status(202).json({result:result[0]})}catch(error){
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showNotification=async(req,res,next)=>{
@@ -509,7 +527,7 @@ exports.showAltMed=async(req,res,next)=>{
         return res.status(201).json({altmeds:altmeds2})
     }catch(error)
     {
-        return res.status(500).json({message:'Server Error :('})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showMedOrdered=async(req,res,next)=>{
@@ -533,7 +551,7 @@ const a=await order.findAll({where:{userUserId:id},
         totalpage:Math.ceil(data.count/limit)
     }})}
     catch(error){
-        return res.status(500).json({message:'Server Error :('})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showProfile=async(req,res,next)=>{
@@ -542,7 +560,7 @@ exports.showProfile=async(req,res,next)=>{
     const a=await user.findOne({where:{userId:id}})
     return res.status(200).json({data:a})}
     catch(error){
-        return res.status(500).json({message:'Server Error'})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.editProfile=async(req,res,next)=>{
@@ -583,8 +601,7 @@ exports.cancelFromOrder=async(req,res,next)=>{
                 return res.status(202).json({message:"The Item Deleted From Order :("})
             }
         }
-        return res.status(202).json({message:"Remove From Order Successfully :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error :("})
+        return res.status(500).json({message:error.message})
     }
 }

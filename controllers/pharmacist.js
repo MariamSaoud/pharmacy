@@ -62,7 +62,7 @@ exports.signUp=async(req,res,next)=>{
             return res.status(200).json(me);
         }
     }catch(error){
-        return res.status(500).json({msg:"Sorry Something Went Wrong!"})
+        return res.status(500).json({msg:error.message})
     }
 }
 //sendOTP
@@ -280,7 +280,7 @@ exports.addCompany=async(req,res,next)=>{
     const companyName=req.body.companyName;
     await company.create({companyName:companyName})
     .then(data=>{return res.status(201).json({data})})
-    .catch(error=>{return res.status(500).json({message:"Oops! Connection Error"})})
+    .catch(error=>{return res.status(500).json({message:error.message})})
 }
 //updatecompany
 exports.updateCompanyName=async(req,res,next)=>{
@@ -298,7 +298,7 @@ exports.updateCompanyName=async(req,res,next)=>{
         await company.update({companyName:companyName},{where:{companyId:companyId}})
         return res.status(202).json({message:"updated successfully!"})
     }catch(error){
-        return res.status(500).json({message:"Oops! Server Connection Failed:("})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.deleteCompany=async(req,res,next)=>{
@@ -307,7 +307,7 @@ exports.deleteCompany=async(req,res,next)=>{
         await company.destroy({where:{companyId:companyId}})
         return res.status(202).json({message:"deleted successfully!"})
     }catch(error){
-        return res.status(500).json({message:"Oops! Server Connection Failed:("})
+        return res.status(500).json({message:error.message})
     }
 }
 //add medicine
@@ -350,7 +350,7 @@ exports.addmedicine=async(req,res,next)=>{
 })
 return res.status(201).json({med});
     }catch(error)
-    {return res.status(500).json({message:"Server Error:("})}
+    {return res.status(500).json({message:error.message})}
 }
 //add medicine with it's company
 exports.addmedicineCompany=async(req,res,next)=>{
@@ -422,7 +422,7 @@ exports.updateprice=async(req,res,next)=>{
         await medicine.update({price:price},{where:{medicineId:medicineId}})
         return res.status(202).json({message:"Update Price Successfully :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error"})}
+        return res.status(500).json({message:error.message})}
 }
 //increase quantity
 exports.increaseQuantity=async(req,res,next)=>{
@@ -441,7 +441,7 @@ exports.increaseQuantity=async(req,res,next)=>{
         await medicine.update({quantity:b+quantity},{where:{medicineId:medicineId}})
         return res.status(202).json({message:"Update Quantity Successfully :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error"})}
+        return res.status(500).json({message:error.message})}
 }
 //delete medicine
 exports.deletemedicine=async(req,res,next)=>{
@@ -453,7 +453,7 @@ exports.deletemedicine=async(req,res,next)=>{
         await medicine.destroy({where:{medicineId:medicineId}})
         return res.status(202).json({message:"Delete Medicine Successfully :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error :("})}
+        return res.status(500).json({message:error.message})}
 }
 //add_alternative_med
 exports.addAlternativeMed=async(req,res,next)=>{
@@ -474,7 +474,7 @@ exports.addAlternativeMed=async(req,res,next)=>{
         await altmed.create({altmed:b,medicineMedicineId:medicineId})
         return res.status(202).json({message:`Create An Alternative Medicine To ${d} Successfully :)`})
     }catch(error){
-        return res.status(500).json({message:"Server Error :("})}
+        return res.status(500).json({message:error.message})}
 }
 //update_alternative_med
 exports.updateAlteernativeMed=async(req,res,next)=>{
@@ -493,7 +493,7 @@ exports.updateAlteernativeMed=async(req,res,next)=>{
         await altmed.update({altmed:b},{where:{altmedId:altmedId}})
         return res.status(202).json({message:"Updated Successfully :)"})
     }catch(error){
-        return res.status(500).json({message:"Server Error :("})}
+        return res.status(500).json({message:error.message})}
 }
 //delete_alternative_med
 exports.deleteAlternativeMed=async(req,res,next)=>{
@@ -502,7 +502,7 @@ exports.deleteAlternativeMed=async(req,res,next)=>{
         await altmed.destroy({where:{altmedId:altmedId}});
         return res.status(202).json({message:"Deleted Successfully!"})
     }catch(error){
-        return res.status(500).json({message:"Server Error"})}
+        return res.status(500).json({message:error.message})}
 }
 //update medicine price from percentage
 let i=0;
@@ -527,12 +527,16 @@ exports.updatepricepercentage=async(req,res,next)=>{
         return res.status(202).json({message:"Update By Percentage Done Successfully"})
     }
 }catch(error){
-    return res.status(500).json({message:"Server Error"})}
+    return res.status(500).json({message:error.message})}
 }
-exports.confirmOrder=async(req,res,next)=>{
+exports.confirmOrder=async(req,res,next)=>{ 
     const orderId=req.params.orderId;
     try{
-        await order.update({state:"Buy"},{where:{orderId:orderId}})
+        const a=await order.findOne({where:{state:"waiting",orderId:orderId}})
+            if(!a){
+            return res.status(400).json({msg:"Maybe Confirmed Previously, Don't Repeate The Confirm Process On This Order!"})
+        }
+        await order.update({state:"Buy"},{where:{state:"waiting",orderId:orderId}})
         const x=await op_relation.findAll({where:{orderOrderId:orderId}})
         for(let i=0;i<x.length;i++)
         {
@@ -541,15 +545,19 @@ exports.confirmOrder=async(req,res,next)=>{
         }
         const v=await order.findOne({where:{orderId:orderId}})
         await notification.create({description:'Your Order Confirmed :)',userUserId:v.userUserId})
-        return res.status(201).json({message:"Order Confirmed!"})
-    }catch(error){
+        return res.status(201).json({message:"Order Confirmed!"})}
+        catch(error){
         return res.status(500).json({error:error.message})
     }
 }
 let j,x,y;
 let m=Date.now();
 exports.notifications=async(req,res,next)=>{
+    const receivedtoken=req.body.fcmToken;
     const id=req.id;
+    if(receivedtoken.length==0){
+        return res.status(400).json({msg:"No Token Here!"});
+    }
     x=await medicine.findAll({
         attributes:['medicineName'],
         where:{
@@ -562,29 +570,53 @@ exports.notifications=async(req,res,next)=>{
     else{
         for(j=0;j<x.length;j++)
         {   let v=await x[j];
-            console.log(x[j])
+            console.log(x[j]);
             await notification.create({description:`Today The Medicine${v.medicineName} Has Expired Please Don't Sale It!`,userUserId:id})
         }
+        const message={
+            notification:{
+                title:"Expired Date Medicine",
+                body:`Don't Sale It ${x}`
+            },
+            token:receivedtoken[0]
+        };
+        admin.messaging().send(message).then(()=>{
+        }).catch((error)=>{return res.status(500).json({message:error.message})})
         return res.status(202).json({message:"Today There Is Expired Date Medicine :(",x});    
     }
 }
 //low bound send notifications
 let count=0;
 exports.lowBoundNotifications=async(req,res,next)=>{
+    const receivedtoken=req.body.fcmToken;
     const id=req.id;
+    if(receivedtoken.length==0){
+        return res.status(400).json({msg:"No Token Here!"});
+    }
+    const id1=[];
     y=await medicine.findAll();
         for(j=0;j<y.length;j++)
         {   let v=await y[j];
             if(v.quantity==v.lowBound)
             {   count++;
                 await notification.create({description:`Today The Medicine${v.medicineName} Has The Low Bound!, Try To Buy It`,userUserId:id})
+                await id1.push(v.medicineName)
             }
         }
-        if(count==0){
-            return res.status(202).json({message:"No Low Bound Medicine!"})
+        if(count!==0){        
+            const message={
+            notification:{
+                title:"Low Bound Medicine",
+                body:`Low Quantity of ${id1}`
+            },
+            token:receivedtoken[0]
+        };
+        admin.messaging().send(message).then(()=>{
+        }).catch((error)=>{return res.status(500).json({message:error.message})})
+            return res.status(202).json({message:`No Low Bound Medicine!${id1}`})
         }
         else{
-            return res.status(202).json({message:"There is Low Bound!"})
+            return res.status(202).json({message:"There is Low Bound!",medicine:id1})
         }
 }
 //delete notifications
@@ -595,7 +627,7 @@ exports.deleteNotifications=async(req,res,next)=>{
     return res.status(202).json({message:"Deleted Successfully:)"})
     }catch(error)
     {
-        return res.status(500).json({message:"Server Error!"})
+        return res.status(500).json({message:error.message})
     }
 }
 //begin of statistics 
@@ -615,7 +647,7 @@ exports.maxSelling=async(req,res,next)=>{
     const b=await sequelize.query('SELECT medicineMedicineId, MAX(SumCount.mycount) AS myMax FROM (SELECT medicineMedicineId, SUM(count) AS mycount FROM  op_relations GROUP BY medicineMedicineId order by mycount desc limit 1)  SumCount GROUP BY medicineMedicineId')
     const c=await b[0];
     const d=await medicine.findOne({where:{medicineId:c[0].medicineMedicineId}})
-    return res.status(202).json({Max:c[0].myMax,Name:d.medicineName})
+    return res.status(202).json({Max:c[0].myMax,Name:d.medicineName,photo:d.medicineImageUrl})
 }catch(error){
     return res.status(500).json({error:error.message})
     }
@@ -626,7 +658,7 @@ exports.minSelling=async(req,res,next)=>{
     const c=await b[0];
     console.log(c);
     const d=await medicine.findOne({where:{medicineId:c[0].medicineMedicineId}})
-    return res.status(202).json({Min:c[0].myMin,Name:d.medicineName})
+    return res.status(202).json({Min:c[0].myMin,Name:d.medicineName,photo:d.medicineImageUrl})
 }catch(error){
     return res.status(500).json({error:error.message})
     }
@@ -670,10 +702,13 @@ exports.dailyInventory=async(req,res,next)=>{
     }
     else{
     var ids = [];
+    var ids3 = [];
     for(let i=0;i<a[0].length;i++)
     {   const m=await order.findOne({where:{orderId:a[0][i].orderOrderId}})
         if(m.state=='Buy'){
-            ids.push(a[0][i].medicineMedicineId)}
+            ids.push(a[0][i].medicineMedicineId)
+            ids3.push(a[0][i].orderOrderId)
+        }
     }
 }
     //ids=[...new Set(ids)]                //to find unique ids
@@ -681,12 +716,15 @@ exports.dailyInventory=async(req,res,next)=>{
         return res.status(400).json({message:'Sorry Today No Medicine Bought !'})
     }
     else{var ids2 = [];
+        var sum=0;
+        console.log(ids);
         for(let i=0;i<ids.length;i++){
             const n=await medicine.findOne({where:{medicineId:ids[i]}})
-            const o=await op_relation.findOne({where:{medicineMedicineId:ids[i]}})
+            const o=await op_relation.findOne({where:{medicineMedicineId:ids[i],orderOrderId:ids3[i]}})
+            sum=await sum+n.price*o.count;
             ids2.push(n.medicineName+'With Price'+-n.price+'With Count'+-o.count)
         }
-        return res.status(202).json({result:ids2})}}
+        return res.status(202).json({result:ids2,sum:sum})}}
     catch(error){
         return res.status(500).json({error:error.message})
     }
@@ -702,32 +740,32 @@ exports.search=async(req,res,next)=>{
     }
     const medSearch=req.body.medSearch;
     try{
-    const name=await medicine.findAll({where:{medicineName:medSearch}})
-    if(name.length!==0){
+    const p=medSearch.concat('','%')
+    const p1='%'.concat('',p)
+    const name= await sequelize.query('SELECT * FROM medicines WHERE medicineName LIKE :search',{replacements:{search:p1}})
+    if(name[0].length!==0){
         result=await name;
     }
-    else if (name.length==0) {
-        const myCompany=await company.findOne({where:{companyName:medSearch}})
+    else if (name[0].length===0) {
+        const myCompany=await sequelize.query('SELECT * FROM companies WHERE companyName LIKE :search',{replacements:{search:p1}})
         let medCompany
-        if(myCompany){
-            medCompany=await medicine.findAll({where:{companyCompanyId:myCompany.companyId}})
+        if(myCompany[0].length!==0){
+            medCompany=await medicine.findAll({where:{companyCompanyId:myCompany[0][0].companyId}})
             result=medCompany}
-            else if(!myCompany){
-                const p=medSearch.concat('',' %')
-                    const p1='%'.concat('',p)
+            else if(myCompany[0].length===0){
                 const composition=await sequelize.query('SELECT * FROM medicines WHERE pharmaceuticalComposition LIKE :search',{replacements:{search:p1}})
-                console.log(composition[0].length)
                 if(composition[0].length!==0){
                     result=await composition[0]
+                    console.log(name[0].length,myCompany[0].length,composition[0].length)
                 }
-                else if(composition[0].length===0){
-                    var l='Try To Search About Another Thing !';
+                else if(composition[0][0].length===0){
+                    var l=['Try To Search About Another Thing !'];
                     result=l;
                 }
             }
     }
-    return res.status(202).json({result:result})}catch(error){
-        return res.status(500).json({message:'There Is An Error:( '})
+    return res.status(202).json({result:result[0]})}catch(error){
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showNotification=async(req,res,next)=>{
@@ -757,7 +795,7 @@ exports.showFromBarcode=async(req,res,next)=>{
         const p=await medicine.findOne({where:{medicineBarcode:medicineBarcode}})
         return res.status(202).json({data:p})}
     catch(error){
-        return res.status(500).json({message:'Server Error'})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.showOrdersDetails=async(req,res,next)=>{
@@ -859,7 +897,7 @@ exports.showProfile=async(req,res,next)=>{
     const a=await user.findOne({where:{userId:id}})
     return res.status(200).json({data:a})}
     catch(error){
-        return res.status(500).json({message:'Server Error'})
+        return res.status(500).json({message:error.message})
     }
 }
 exports.editProfile=async(req,res,next)=>{

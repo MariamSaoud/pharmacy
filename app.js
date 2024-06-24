@@ -1,4 +1,4 @@
-//1- npm init  2- npm install --save express 3-npm install --save mysql2  4-npm install --save sequelize after mysql2 5-npm install --save body-parser  6- npm install --save multer 7-npm install bcrypt 8- npm install jsonwebtoken 9-npm install joi 10-npm install fs 11-npm install nodemon 12-npm install nodemailer 13- npm install translate-google
+//1- npm init  2- npm install --save express 3-npm install --save mysql2  4-npm install --save sequelize after mysql2 5-npm install --save body-parser  6- npm install --save multer 7-npm install bcrypt 8- npm install jsonwebtoken 9-npm install joi 10-npm install fs 11-npm install nodemon 12-npm install nodemailer 13- npm install translate-google 14-npm install firebase-admin
 const express=require('express');
 const app=express();
 const path =require('path');
@@ -59,6 +59,13 @@ const userRoute=require('./routers/user');
 //router use
 app.use('/pharmacist/',pharmacistRoute);
 app.use('/user/',userRoute);
+//firebase 
+var admin = require("firebase-admin");
+var serviceAccount = require("./notification-f0089-firebase-adminsdk-bg4u7-fc3a14a822.json");
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    projectId:'notification-f0089'
+});
 //relationShip
 medicine.hasMany(altmed);
 altmed.belongsTo(medicine);
