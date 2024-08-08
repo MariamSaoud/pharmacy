@@ -20,6 +20,7 @@ const op_relation=require('../models/op_relation');
 const notification=require('../models/notification');
 const { da } = require('translate-google/languages');
 const { off } = require('process');
+const { messaging } = require('firebase-admin');
 //translate
 exports.translate=async(req,res,next)=>{
     const SignUpSchema=joi.object({
@@ -40,6 +41,7 @@ exports.signUp=async(req,res,next)=>{
         email:joi.string().email().required(),
         password:joi.string().min(4).max(25).required(),
         role:joi.string().optional(),
+        mobileNumber:joi.string().required()
     })
     const result=await SignUpSchema.validate(req.body);
     if(result.error){
@@ -49,6 +51,7 @@ exports.signUp=async(req,res,next)=>{
     const email=req.body.email;
     const password=req.body.password;
     const role=req.body.role;
+    const mobileNumber=req.body.mobileNumber;
     try{
         const existingUser=await user.findOne({where:{userName:userName}});
         if(existingUser)
@@ -58,7 +61,7 @@ exports.signUp=async(req,res,next)=>{
         else{
             const salt=await bcrypt.genSalt(10);
             const hashedPassword=await bcrypt.hash(password,salt);
-            const me=await user.create({userName:userName,email:email,password:hashedPassword,role:role});
+            const me=await user.create({userName:userName,email:email,password:hashedPassword,role:role,mobileNumber:mobileNumber});
             return res.status(200).json(me);
         }
     }catch(error){
@@ -204,6 +207,9 @@ exports.login=async(req,res,next)=>{
             if(existingUser.verified==false){
                 return res.status(401).json({msg:"Sorry You Can't Loggin Before You Verify Your Account:("})
             }
+            if(existingUser.role=='user'){
+                return res.status(401).json({msg:"Sorry You Can't Loggin Because you are user not pharmacist:("})
+            }
             const matchPassword=await bcrypt.compare(password,existingUser.password)
             if(!matchPassword){
                 return res.status(400).json({msg:"Are You Sure This Is Your Password? I Don't Think That:("})
@@ -243,7 +249,7 @@ exports.resetPassword=async(req,res,next)=>{
     res.status(201).json({message:"Congrats!,Your Password Changed Successfully:)"})
 }
 exports.deleteaccount=async(req,res,next)=>{
-    const userId=req.params.userId;
+    const userId=req.id;
     const me=await user.findOne({where:{userId:userId}})
     if(!me){
         return res.status(400).json({message:"You Already Don't Have An Account, Try To Create One :)"})
@@ -550,75 +556,6 @@ exports.confirmOrder=async(req,res,next)=>{
         return res.status(500).json({error:error.message})
     }
 }
-let j,x,y;
-let m=Date.now();
-exports.notifications=async(req,res,next)=>{
-    const receivedtoken=req.body.fcmToken;
-    const id=req.id;
-    if(receivedtoken.length==0){
-        return res.status(400).json({msg:"No Token Here!"});
-    }
-    x=await medicine.findAll({
-        attributes:['medicineName'],
-        where:{
-            expiredDate:m  
-        }
-    })
-    if(x.length==0){
-        return res.status(202).json({message:"No Expired Date Medicine!"})
-    }
-    else{
-        for(j=0;j<x.length;j++)
-        {   let v=await x[j];
-            console.log(x[j]);
-            await notification.create({description:`Today The Medicine${v.medicineName} Has Expired Please Don't Sale It!`,userUserId:id})
-        }
-        const message={
-            notification:{
-                title:"Expired Date Medicine",
-                body:`Don't Sale It ${x}`
-            },
-            token:receivedtoken[0]
-        };
-        admin.messaging().send(message).then(()=>{
-        }).catch((error)=>{return res.status(500).json({message:error.message})})
-        return res.status(202).json({message:"Today There Is Expired Date Medicine :(",x});    
-    }
-}
-//low bound send notifications
-let count=0;
-exports.lowBoundNotifications=async(req,res,next)=>{
-    const receivedtoken=req.body.fcmToken;
-    const id=req.id;
-    if(receivedtoken.length==0){
-        return res.status(400).json({msg:"No Token Here!"});
-    }
-    const id1=[];
-    y=await medicine.findAll();
-        for(j=0;j<y.length;j++)
-        {   let v=await y[j];
-            if(v.quantity==v.lowBound)
-            {   count++;
-                await notification.create({description:`Today The Medicine${v.medicineName} Has The Low Bound!, Try To Buy It`,userUserId:id})
-                await id1.push(v.medicineName)
-            }
-        }
-        if(count!==0){        
-            const message={
-            notification:{
-                title:"Low Bound Medicine",
-                body:`Low Quantity of ${id1}`
-            },
-            token:receivedtoken[0]
-        };
-        admin.messaging().send(message).then(()=>{
-        }).catch((error)=>{return res.status(500).json({message:error.message})})
-            return res.status(202).json({message:`No Low Bound Medicine!${id1}`})
-        }
-        else{
-            return res.status(202).json({message:"There is Low Bound!",medicine:id1})
-        }
-}
 //delete notifications
 exports.deleteNotifications=async(req,res,next)=>{
     const notificationId=req.params.notificationId;
@@ -654,12 +591,50 @@ exports.maxSelling=async(req,res,next)=>{
 }
 exports.minSelling=async(req,res,next)=>{
     try{ 
+    const med=await medicine.findAll();
+    const buyedMed=await op_relation.findAll();
+    let id=[],id2=[],id3=[];
+    let i;
+    for(i=0;i<med.length;i++)
+        {
+            id.push(med[i].medicineId)
+        }
+    for(i=0;i<buyedMed.length;i++)
+        {
+            id2.push(buyedMed[i].medicineMedicineId)
+        }
+        id2=[...new Set(id2)];
+        id2.sort()
+if(id.length==id2.length){
     const b=await sequelize.query(' SELECT medicineMedicineId, MIN(SumCount.mycount) AS myMin FROM (SELECT medicineMedicineId, SUM(count) AS mycount FROM  op_relations GROUP BY medicineMedicineId order by mycount  limit 1)  SumCount GROUP BY medicineMedicineId')
     const c=await b[0];
     console.log(c);
-    const d=await medicine.findOne({where:{medicineId:c[0].medicineMedicineId}})
-    return res.status(202).json({Min:c[0].myMin,Name:d.medicineName,photo:d.medicineImageUrl})
+    let ids3=[],ids4=[];
+    for(i=0;i<c.length;i++){
+        const d=await medicine.findAll({where:{medicineId:c[i].medicineMedicineId}})
+        ids3.push(d[i].medicineName)
+        ids4.push(d[i].medicineImageUrl)
+    }
+    return res.status(202).json({Min:c[0].myMin,Name:ids3,photo:ids4})
+    }
+    else{
+    for(i=0;i<id.length;i++){
+        console.log(id[i])
+        if(id2.indexOf(id[i])==-1)
+            {
+                id3.push(id[i])
+            }
+    }
+    let id4=[],id5=[];
+    for(i=0;i<id3.length;i++){
+        const t=await medicine.findOne({where:{medicineId:id3[i]}})
+        id4.push(t.medicineName)
+        id5.push(t.medicineImageUrl)
+    }
+    return res.status(202).json({Min:"0",Name:id4,photo:id5})
+    }
 }catch(error){
+    console.log(error)
     return res.status(500).json({error:error.message})
     }
 }
@@ -744,7 +719,7 @@ exports.search=async(req,res,next)=>{
     const p1='%'.concat('',p)
     const name= await sequelize.query('SELECT * FROM medicines WHERE medicineName LIKE :search',{replacements:{search:p1}})
     if(name[0].length!==0){
-        result=await name;
+        result=await name[0];
     }
     else if (name[0].length===0) {
         const myCompany=await sequelize.query('SELECT * FROM companies WHERE companyName LIKE :search',{replacements:{search:p1}})
@@ -756,15 +731,14 @@ exports.search=async(req,res,next)=>{
                 const composition=await sequelize.query('SELECT * FROM medicines WHERE pharmaceuticalComposition LIKE :search',{replacements:{search:p1}})
                 if(composition[0].length!==0){
                     result=await composition[0]
-                    console.log(name[0].length,myCompany[0].length,composition[0].length)
                 }
-                else if(composition[0][0].length===0){
-                    var l=['Try To Search About Another Thing !'];
+                else if(composition[0].length===0){
+                    var l='Try To Search About Another Thing !';
                     result=l;
                 }
             }
     }
-    return res.status(202).json({result:result[0]})}catch(error){
+    return res.status(202).json({result:result})}catch(error){
         return res.status(500).json({message:error.message})
     }
 }
@@ -806,10 +780,15 @@ exports.showOrdersDetails=async(req,res,next)=>{
             page: +page?+page:1,
             limit:+limit?+limit:2,
             offset:offset,
-            include:{
+            include:[{
                 required: false,
                 model:medicine,attributes:['medicineName','price']
-            }
+            },
+        {
+            required: false,
+            model:user,attributes:['userName','location','mobileNumber']
+        }
+        ]
         })
         const data=await await order.findAndCountAll()
         return res.status(202).json({
@@ -862,7 +841,7 @@ exports.showAltForAllMed=async(req,res,next)=>{
         })
         const data=await await medicine.findAndCountAll()
         return res.status(202).json({
-            data:d,
+            data:d[0],
         pagination:{
             page:+page,
             limit:+limit,
@@ -874,17 +853,24 @@ exports.showAltForAllMed=async(req,res,next)=>{
         return res.status(500).json({message:error.message})
     }
 }
+
+let id=[],id2=[];
 exports.showAltForMed=async(req,res,next)=>{
     const medicineMedicineId=req.params.medicineId;
     try{
-        const d=await medicine.findOne({
-            where:{medicineId:medicineMedicineId},
-            include:{
-                model:altmed
-            }
-        })
+        const d=await altmed.findAll({where:{medicineMedicineId:medicineMedicineId}})
+        if(d.length==0){
+            return res.status(400).json({message:"There Is No Alternative :("})
+        }
+        for (let i=0;i<d.length;i++){
+            id.push(d[i].altmed)
+        }
+        for(let i=0;i<id.length;i++){
+            const s=await medicine.findAll({where:{medicineId:id[i]}})
+            id2.push(s[0])
+        }
         return res.status(202).json({
-            data:d})
+            data:id2})
     }
     catch(error)
     {
@@ -920,4 +906,68 @@ exports.editProfile=async(req,res,next)=>{
         catch(error){
             return res.status(500).json({message:error.message})
         }
+}
+exports.findId=async(req,res,next)=>{
+const SignUpSchema=joi.object({
+    input:joi.string().optional(),
+    type:joi.string().required(),
+})
+const result=await SignUpSchema.validate(req.body);
+if(result.error)
+{
+    return res.status(400).json({error:result.error.details[0].message})
+}
+const input=req.body.input;
+const type=req.body.type;
+let myresult;
+try{switch(type){
+    case("medicine"):
+    {
+        const medName=await medicine.findOne({where:{medicineName:input}})
+        if(medName){myresult=medName.medicineId}
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    case("company"):
+    {
+        const compName=await company.findOne({where:{companyName:input}})
+        if(compName){myresult=compName.companyId}
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    case("notification"):
+    {
+        const descr=await notification.findOne({where:{description:input,userUserId:req.id}})
+        if(descr){myresult=descr.notificationId}
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    case("order"):
+    {
+        const orderN=await order.findOne({where:{state:"waiting",userUserId:req.id}})
+        if(orderN){myresult=orderN.orderId}
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    
+    case("altmed"):
+    {   const m=await medicine.findOne({where:{medicineName:input}})
+        const altmedN=await altmed.findOne({where:{altmed:m.medicineId}})
+        if(altmedN){myresult=altmedN.altmedId}
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    case("op_relation"):
+    {
+        const orderN=await order.findOne({where:{state:"waiting",userUserId:req.id}})
+        const m=await medicine.findOne({where:{medicineName:input}})
+        const op_relationN=await op_relation.findOne({where:{orderOrderId:orderN.orderId,medicineMedicineId:m.medicineId}})
+        if(op_relationN){myresult=op_relationN.op_relationId}        
+        else{myresult="There is Wrong Here!"}
+        break;
+    }
+    default:
+        myresult="Wrong Values"
+}
+    return res.status(201).json({myresult:myresult})}catch(error){return res.status(500).json({msg:error.message})}
 }

@@ -13,7 +13,7 @@ const medicine=sequelize.define('medicine',{
     medicineName:{type:Sequelize.STRING},
     pharmaceuticalIndications:{type:Sequelize.TEXT},
     pharmaceuticalComposition:{type:Sequelize.TEXT},
-    price:{type:Sequelize.DOUBLE},
+    price:{type:Sequelize.INTEGER},
     quantity:{
         type:Sequelize.INTEGER,
         defaultValue:1},

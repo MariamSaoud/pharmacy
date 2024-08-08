@@ -17,6 +17,7 @@ const altmed=require('../models/altmed');
 const order=require('../models/order');
 const op_relation=require('../models/op_relation');
 const notification=require('../models/notification');
+const { group } = require('console');
 //translate
 exports.translate=async(req,res,next)=>{
     const SignUpSchema=joi.object({
@@ -89,6 +90,7 @@ exports.SignUp=async(req,res,next)=>{
         userName:joi.string().min(3).required(),
         email:joi.string().email().required(),
         password:joi.string().min(4).max(25).required(),
+        mobileNumber:joi.string().required(),
         role:joi.string().optional(),
     })
     const result=await SignUpSchema.validate(req.body);
@@ -98,6 +100,7 @@ exports.SignUp=async(req,res,next)=>{
     const userName=req.body.userName;
     const email=req.body.email;
     const password=req.body.password;
+    const mobileNumber=req.body.mobileNumber;
     const role=req.body.role;
     try{
         const existingUser=await user.findOne({where:{userName:userName}});
@@ -108,7 +111,7 @@ exports.SignUp=async(req,res,next)=>{
         else{
             const salt=await bcrypt.genSalt(10);
             const hashedPassword=await bcrypt.hash(password,salt);
-            const me=await user.create({userName:userName,email:email,password:hashedPassword,role:role});
+            const me=await user.create({userName:userName,email:email,password:hashedPassword,role:role,mobileNumber:mobileNumber});
             return res.status(200).json(me);
         }
     }catch(error){
@@ -201,6 +204,9 @@ exports.login=async(req,res,next)=>{
             if(existingUser.verified==false){
                 return res.status(401).json({msg:"Sorry You Can't Loggin Before You Verify Your Account:("})
             }
+            if(existingUser.role=='pharmacist'){
+                return res.status(401).json({msg:"Sorry You Can't Loggin Because you are not user:("})
+            }
             const matchPassword=await bcrypt.compare(password,existingUser.password)
             if(!matchPassword){
                 return res.status(400).json({msg:"Are You Sure This Is Your Password? I Don't Think That:("})
@@ -240,7 +246,7 @@ exports.resetPassword=async(req,res,next)=>{
 }
 //delete account
 exports.deleteaccount=async(req,res,next)=>{
-    const userId=req.params.userId;
+    const userId=req.id;
     const me=await user.findOne({where:{userId:userId}})
     if(!me){
         return res.status(400).json({message:"You Already Don't Have An Account, Try To Create One :)"})
@@ -341,49 +347,6 @@ if(result.error)
         return res.status(500).json({message:error.message})
     }
 }
-let k;
-exports.notificationWant=async(req,res,next)=>{
-    const SignUpSchema=joi.object({
-        time:joi.number().required(),
-        duration:joi.number().required(),
-        med:joi.string().required(),
-        receivedtoken:joi.string().required(),
-    })
-    const result=await SignUpSchema.validate(req.body);
-    if(result.error)
-    {
-        return res.status(400).json({error:result.error.details[0].message})
-    }
-    if(receivedtoken.length==0){
-        return res.status(400).json({msg:"No Token Here!"});
-    }
-    const receivedtoken=req.body.fcmToken;
-    const id=req.id;
-    const time=req.body.time;   //time in hour like 8 hours to take the medicine
-    const duration=req.body.duration;   //days
-    const med=req.body.med;     //medicine to remember user to take it!
-    for(k=0;k<duration*((24*3600)/(time*3600));k++){
-        setTimeout(()=>{
-            if(tokenArr.length==0){
-                return res.status(400).json({message:"No Token Found To Send Notification"})
-            }
-            else{
-            const message={
-                notification:{
-                    title:"Remember Your Medicine",
-                    body:`Herry Up Go To Take Your Medicine  ${med}`
-                },
-                token:receivedtoken[0]
-            };
-            admin.messaging().send(message).then(()=>{
-            const t=notification.create({description:`Take Your Medicine ${med},To Feel Better:)`,userUserId:id})
-            }).catch((error)=>{return res.status(500).json({message:error.message})})
-            }
-        },time*3600*(k+1)*1000)
-    }
-    clearInterval();
-    res.status(200).json({message:"Remember Your Medicine"})
-}
 exports.deleteNotifications=async(req,res,next)=>{
     const notificationId=req.params.notificationId;
     try{
@@ -435,7 +398,7 @@ exports.search=async(req,res,next)=>{
     const p1='%'.concat('',p)
     const name= await sequelize.query('SELECT * FROM medicines WHERE medicineName LIKE :search',{replacements:{search:p1}})
     if(name[0].length!==0){
-        result=await name;
+        result=await name[0];
     }
     else if (name[0].length===0) {
         const myCompany=await sequelize.query('SELECT * FROM companies WHERE companyName LIKE :search',{replacements:{search:p1}})
@@ -447,15 +410,14 @@ exports.search=async(req,res,next)=>{
                 const composition=await sequelize.query('SELECT * FROM medicines WHERE pharmaceuticalComposition LIKE :search',{replacements:{search:p1}})
                 if(composition[0].length!==0){
                     result=await composition[0]
-                    console.log(name[0].length,myCompany[0].length,composition[0].length)
                 }
-                else if(composition[0][0].length===0){
-                    var l=['Try To Search About Another Thing !'];
+                else if(composition[0].length===0){
+                    var l='Try To Search About Another Thing !';
                     result=l;
                 }
             }
     }
-    return res.status(202).json({result:result[0]})}catch(error){
+    return res.status(202).json({result:result})}catch(error){
         return res.status(500).json({message:error.message})
     }
 }
@@ -522,7 +484,7 @@ exports.showAltMed=async(req,res,next)=>{
         for(let i=0;i<altmeds.length;i++)
         {
             const b=await medicine.findOne({where:{medicineId:altmeds[i]}})
-            altmeds2.push(b.medicineName)
+            altmeds2.push(b)
         }
         return res.status(201).json({altmeds:altmeds2})
     }catch(error)
@@ -544,7 +506,15 @@ const a=await order.findAll({where:{userUserId:id},
         model:medicine,attributes:['medicineName','price','medicineImageUrl']
     }})
     const data=await await order.findAndCountAll({where:{userUserId:id}})
+    const ph=await user.findOne({
+        attributes:['mobileNumber','userId', [Sequelize.fn('MIN', Sequelize.col('userId')),'id']],
+        where:{role:"pharmacist"},
+        group:['userId']
+    })
+    const phNum=await user.findOne({where:{userId:ph.userId}})
+    const mainNumber=await phNum.mobileNumber;
     return res.status(202).json({data:a,
+        pharmacyNumber:mainNumber,
         pagination:{
         page:+page,
         limit:+limit,
@@ -605,3 +575,67 @@ exports.cancelFromOrder=async(req,res,next)=>{
         return res.status(500).json({message:error.message})
     }
 }
+exports.findId=async(req,res,next)=>{
+    const SignUpSchema=joi.object({
+        input:joi.string().optional(),
+        type:joi.string().required(),
+    })
+    const result=await SignUpSchema.validate(req.body);
+    if(result.error)
+    {
+        return res.status(400).json({error:result.error.details[0].message})
+    }
+    const input=req.body.input;
+    const type=req.body.type;
+    let myresult;
+    try{switch(type){
+        case("medicine"):
+        {
+            const medName=await medicine.findOne({where:{medicineName:input}})
+            if(medName){myresult=medName.medicineId}
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        case("company"):
+        {
+            const compName=await company.findOne({where:{companyName:input}})
+            if(compName){myresult=compName.companyId}
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        case("notification"):
+        {
+            const descr=await notification.findOne({where:{description:input,userUserId:req.id}})
+            if(descr){myresult=descr.notificationId}
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        case("order"):
+        {
+            const orderN=await order.findOne({where:{state:"waiting",userUserId:req.id}})
+            if(orderN){myresult=orderN.orderId}
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        
+        case("altmed"):
+        {   const m=await medicine.findOne({where:{medicineName:input}})
+            const altmedN=await altmed.findOne({where:{altmed:m.medicineId}})
+            if(altmedN){myresult=altmedN.altmedId}
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        case("op_relation"):
+        {
+            const orderN=await order.findOne({where:{state:"waiting",userUserId:req.id}})
+            const m=await medicine.findOne({where:{medicineName:input}})
+            const op_relationN=await op_relation.findOne({where:{orderOrderId:orderN.orderId,medicineMedicineId:m.medicineId}})
+            if(op_relationN){myresult=op_relationN.op_relationId}        
+            else{myresult="There is Wrong Here!"}
+            break;
+        }
+        default:
+            myresult="Wrong Values"
+    }
+        return res.status(201).json({myresult:myresult})}catch(error){return res.status(500).json({msg:error.message})}
+    }

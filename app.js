@@ -23,10 +23,9 @@ app.use(bodyParser.json());
 //urlencoded a function that have to execute and you can pass options to configurate it but you don't have to here
 //it will not parse all possible bodies but it will parse bodies like one we're getting here ,if i have files i will parse different parser
 //use path
-app.use(express.static(path.join("./images",__dirname,"images")));
 app.use(express.static(path.join(__dirname,"pharmacy")));
+app.use('/images',express.static(path.join(__dirname+'/images')));
 //setHeader
-
 app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE");
@@ -59,13 +58,6 @@ const userRoute=require('./routers/user');
 //router use
 app.use('/pharmacist/',pharmacistRoute);
 app.use('/user/',userRoute);
-//firebase 
-var admin = require("firebase-admin");
-var serviceAccount = require("./notification-f0089-firebase-adminsdk-bg4u7-fc3a14a822.json");
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId:'notification-f0089'
-});
 //relationShip
 medicine.hasMany(altmed);
 altmed.belongsTo(medicine);

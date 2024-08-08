@@ -12,7 +12,9 @@ const user=sequelize.define('user',{
         type:Sequelize.STRING,
         unique:true,
     },
-    email:{type:Sequelize.STRING,},
+    email:{type:Sequelize.STRING,
+        unique:true,
+    },
     password:{type:Sequelize.STRING,},
     role:{
         type:Sequelize.STRING,
@@ -29,6 +31,10 @@ const user=sequelize.define('user',{
     location:{
         type:Sequelize.STRING,
         allowNull:true,
+    },
+    mobileNumber:{
+        type:Sequelize.STRING,
+        allowNull:false,
     }
 });
 module.exports=user;

@@ -4,6 +4,7 @@ const pharmacistController=require('../controllers/pharmacist');
 const authenticated=require('../controllers/authentication');
 const For_Pharmacist=require('../WhoCanDO/forPharmacist');
 const For_User=require('../WhoCanDO/forUser');
+const notification=require('../controllers/notification')
 //api translate
 router.post('/translate',pharmacistController.translate);
 //authentication
@@ -12,9 +13,9 @@ router.post('/signUp',pharmacistController.signUp);
 router.post('/verifyOTP/:userId',pharmacistController.verifyOTP);
 router.post('/login',pharmacistController.login);
 router.post('/reset-password/:userId',pharmacistController.resetPassword);
-router.post('/delete-account/:userId',pharmacistController.deleteaccount);
+router.post('/delete-account',authenticated,For_Pharmacist.forPharmacist,pharmacistController.deleteaccount);
 router.post('/logout',pharmacistController.logout);
-router.post('/edit-profile',authenticated,pharmacistController.editProfile)
+router.post('/edit-profile',authenticated,For_Pharmacist.forPharmacist,pharmacistController.editProfile)
 //company
 router.post('/add-company',authenticated,For_Pharmacist.forPharmacist,pharmacistController.addCompany);
 router.post('/update-company/:companyId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.updateCompanyName);
@@ -33,8 +34,8 @@ router.delete('/delete-alt-med/:altmedId',authenticated,For_Pharmacist.forPharma
 //confirm_order
 router.post('/confirm-order/:orderId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.confirmOrder); 
 //notifications
-router.post('/notifications',authenticated,For_Pharmacist.forPharmacist,pharmacistController.notifications)
-router.post('/lowBound-notifications',authenticated,For_Pharmacist.forPharmacist,pharmacistController.lowBoundNotifications)
+router.post('/notifications',authenticated,For_Pharmacist.forPharmacist,notification.notifications)
+router.post('/lowBound-notifications',authenticated,For_Pharmacist.forPharmacist,notification.lowBoundNotifications)
 router.delete('/delete-notification/:notificationId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.deleteNotifications)
 // start of get requests :)
 router.get('/max-selling',authenticated,For_Pharmacist.forPharmacist,pharmacistController.maxSelling)
@@ -49,4 +50,5 @@ router.get('/show-companies',authenticated,For_Pharmacist.forPharmacist,pharmaci
 router.get('/show-Altmed',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showAltForAllMed)
 router.get('/showForMed-Alts/:medicineId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showAltForMed)
 router.get('/profile',authenticated,For_Pharmacist.forPharmacist,pharmacistController.showProfile)
+router.get('/findId',authenticated,For_Pharmacist.forPharmacist,pharmacistController.findId)
 module.exports=router;
