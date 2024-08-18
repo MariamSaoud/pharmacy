@@ -12,7 +12,7 @@ router.post('/sendOTP/:userId',pharmacistController.sendOTPverification);
 router.post('/signUp',pharmacistController.signUp);
 router.post('/verifyOTP/:userId',pharmacistController.verifyOTP);
 router.post('/login',pharmacistController.login);
-router.post('/reset-password/:userId',pharmacistController.resetPassword);
+router.post('/reset-password',pharmacistController.resetPassword);
 router.post('/delete-account',authenticated,For_Pharmacist.forPharmacist,pharmacistController.deleteaccount);
 router.post('/logout',pharmacistController.logout);
 router.post('/edit-profile',authenticated,For_Pharmacist.forPharmacist,pharmacistController.editProfile)

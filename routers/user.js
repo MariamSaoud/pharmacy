@@ -12,7 +12,7 @@ router.post('/sendOTP/:userId',userController.sendOTPverification);
 router.post('/signUp',userController.SignUp);
 router.post('/verify-OTP/:userId',userController.verifyOTP);
 router.post('/login',userController.login);
-router.post('/reset-password/:userId',userController.resetPassword);
+router.post('/reset-password',userController.resetPassword);
 router.post('/delete-account',authenticated,For_User.forUser,userController.deleteaccount);
 router.post('/logout',userController.logout);
 router.post('/edit-profile',authenticated,For_User.forUser,userController.editProfile)

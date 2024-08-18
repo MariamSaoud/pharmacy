@@ -226,21 +226,22 @@ exports.login=async(req,res,next)=>{
 exports.resetPassword=async(req,res,next)=>{
     const SignUpSchema=joi.object({
         password:joi.string().min(4).max(45).required(),
+        email:joi.string().email().required(),
     })
     const result=await SignUpSchema.validate(req.body);
     if(result.error){
         return res.status(400).json({error:result.error.details[0].message})
     }
     const password=req.body.password;
-    const userId=req.params.userId;
-    const v=await user.findOne({where:{userId:userId}});
+    const email=req.body.email;
+    const v=await user.findOne({where:{email:email}});
     const saltRound=await bcrypt.genSalt(10);
     const hashed=await bcrypt.hash(password,saltRound);
     if(v.verifiedR==false)
     {
         return res.status(401).json({message:"Before Reset Password, Please Verify Your Account!"})
     }else{
-        await user.update({password:hashed},{where:{userId:userId}})
+        await user.update({password:hashed},{where:{email:email}})
     }
     res.status(201).json({message:"Congrats!,Your Password Changed Successfully:)"})
 }
@@ -412,7 +413,7 @@ exports.search=async(req,res,next)=>{
                     result=await composition[0]
                 }
                 else if(composition[0].length===0){
-                    var l='Try To Search About Another Thing !';
+                    var l=[];
                     result=l;
                 }
             }
@@ -548,7 +549,9 @@ exports.editProfile=async(req,res,next)=>{
     const password=req.body.password;
     const id=req.id;
     try{
-        const a=await user.update({userName:userName,email:email,password:password},{where:{userId:id}})
+        const saltRound=await bcrypt.genSalt(10);
+        const hashed=await bcrypt.hash(password,saltRound);
+        const a=await user.update({userName:userName,email:email,password:hashed},{where:{userId:id}})
         return res.status(200).json({message:"Updated Successfully"})}
         catch(error){
             return res.status(500).json({message:error.message})

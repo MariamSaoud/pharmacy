@@ -79,7 +79,7 @@ exports.lowBoundNotifications=async(req,res,next)=>{
     y=await medicine.findAll();
         for(j=0;j<y.length;j++)
         {   let v=await y[j];
-            if(v.quantity==v.lowBound)
+            if(v.quantity<=v.lowBound)
             {   count++;
                 await notification.create({description:`Today The Medicine${v.medicineName} Has The Low Bound!, Try To Buy It`,userUserId:id})
                 await id1.push(v.medicineName)

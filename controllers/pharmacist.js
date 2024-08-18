@@ -230,21 +230,22 @@ exports.login=async(req,res,next)=>{
 exports.resetPassword=async(req,res,next)=>{
     const SignUpSchema=joi.object({
         password:joi.string().min(4).max(45).required(),
+        email:joi.string().email().required(),
     })
     const result=await SignUpSchema.validate(req.body);
     if(result.error){
         return res.status(400).json({error:result.error.details[0].message})
     }
     const password=req.body.password;
-    const userId=req.params.userId;
-    const v=await user.findOne({where:{userId:userId}});
+    const email=req.body.email;
+    const v=await user.findOne({where:{email:email}});
     const saltRound=await bcrypt.genSalt(10);
     const hashed=await bcrypt.hash(password,saltRound);
     if(v.verifiedR==false)
     {
         return res.status(401).json({message:"Before Reset Password, Please Verify Your Account!"})
     }else{
-        await user.update({password:hashed},{where:{userId:userId}})
+        await user.update({password:hashed},{where:{email:email}})
     }
     res.status(201).json({message:"Congrats!,Your Password Changed Successfully:)"})
 }
@@ -542,14 +543,19 @@ exports.confirmOrder=async(req,res,next)=>{
             if(!a){
             return res.status(400).json({msg:"Maybe Confirmed Previously, Don't Repeate The Confirm Process On This Order!"})
         }
-        await order.update({state:"Buy"},{where:{state:"waiting",orderId:orderId}})
+        
         const x=await op_relation.findAll({where:{orderOrderId:orderId}})
+        const v=await order.findOne({where:{orderId:orderId}})
         for(let i=0;i<x.length;i++)
-        {
+        {   
             const c=await medicine.findOne({where:{medicineId:x[i].medicineMedicineId}})
+            if(c.quantity<x[i].count){
+                await notification.create({description:`Cannot Confirm It Because The Quantity Of ${c.medicineName} Decreased Try To Delete It From Order To Buy Less Or Equal TO ${c.quantity}`,userUserId:v.userUserId})
+                return res.status(400).json({message:`Cannot Confirm It Because The Quantity Of ${c.medicineName} Decreased Try To Delete It From Order To Buy Less Or Equal TO ${c.quantity}`})
+            }
             await medicine.update({quantity:c.quantity-x[i].count},{where:{medicineId:x[i].medicineMedicineId}})
         }
-        const v=await order.findOne({where:{orderId:orderId}})
+        await order.update({state:"Buy"},{where:{state:"waiting",orderId:orderId}})
         await notification.create({description:'Your Order Confirmed :)',userUserId:v.userUserId})
         return res.status(201).json({message:"Order Confirmed!"})}
         catch(error){
@@ -733,7 +739,7 @@ exports.search=async(req,res,next)=>{
                     result=await composition[0]
                 }
                 else if(composition[0].length===0){
-                    var l='Try To Search About Another Thing !';
+                    var l=[];
                     result=l;
                 }
             }
@@ -854,7 +860,6 @@ exports.showAltForAllMed=async(req,res,next)=>{
     }
 }
 
-let id=[],id2=[];
 exports.showAltForMed=async(req,res,next)=>{
     const medicineMedicineId=req.params.medicineId;
     try{
@@ -862,6 +867,7 @@ exports.showAltForMed=async(req,res,next)=>{
         if(d.length==0){
             return res.status(400).json({message:"There Is No Alternative :("})
         }
+        let id=[],id2=[];  
         for (let i=0;i<d.length;i++){
             id.push(d[i].altmed)
         }
@@ -901,7 +907,9 @@ exports.editProfile=async(req,res,next)=>{
     const password=req.body.password;
     const id=req.id;
     try{
-        const a=await user.update({userName:userName,email:email,password:password},{where:{userId:id}})
+        const saltRound=await bcrypt.genSalt(10);
+        const hashed=await bcrypt.hash(password,saltRound);
+        const a=await user.update({userName:userName,email:email,password:hashed},{where:{userId:id}})
         return res.status(200).json({message:"Updated Successfully"})}
         catch(error){
             return res.status(500).json({message:error.message})
