@@ -7,6 +7,7 @@ const bodyParser=require('body-parser');
 const multer=require('multer');
 const sequelize=require('./database');
 const Sequelize=require('sequelize');
+require('dotenv').config();
 //import models
 const user=require('./models/user');
 const medicine=require('./models/medicine');
