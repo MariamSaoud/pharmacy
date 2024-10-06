@@ -22,7 +22,7 @@ const { da } = require('translate-google/languages');
 const { off } = require('process');
 //firebase 
 var admin = require("firebase-admin");
-var serviceAccount = require("../../notification-f0089-firebase-adminsdk-bg4u7-5f5ac86dbb.json");
+var serviceAccount = require("../notification-f0089-firebase-adminsdk-bg4u7-5f5ac86dbb.json");
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     projectId:'notification-f0089'
